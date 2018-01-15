@@ -43,10 +43,10 @@ form input {
     font-size: 1em;
 }
 
-.hit {
+.acerto {
     background: url("../img/ship.png") no-repeat center center;
 }
 
-.miss {
+.erro {
     background: url("../img/miss.png") no-repeat center center;
 }
