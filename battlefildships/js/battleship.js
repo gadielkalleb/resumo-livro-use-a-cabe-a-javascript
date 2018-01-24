@@ -1,25 +1,27 @@
-function init(){
-    let botaoFogo = document.getElementById('fireButton');
-    botaoFogo.onclick = handleFireButton;
+function init() {
+    let fireButton = document.getElementById('fireButton');
+    fireButton.onclick = handleFireButton;
 
-    let palpiteInput = document.getElementById('guessInput');
-    palpiteInput.onkeypress = handleKeyPress;
+    let guessInput = document.getElementById('guessInput');
+    guessInput.onkeypress = handleKeyPress;
+
+    model.generateShipsLocations();
 }
 
 function handleKeyPress(e) {
-    let botaoFogo = document.getElementById('fireButton');
+    let fireButton = document.getElementById('fireButton');
     if (e.keyCode === 13) {
-        botaoFogo.click();
+        fireButton.click();
         return false;
     }
 }
 
 function handleFireButton() {
-    let palpiteInput = document.getElementById('guessInput');
-    let palpite = palpiteInput.value;
-    controller.palpiteProcessado(palpite);
+    let guessInput = document.getElementById('guessInput');
+    let guess = guessInput.value;
+    controller.processGuess(guess);
 
-    palpiteInput.value = '';
+    guessInput.value = '';
 }
 
 window.onload = init;
@@ -29,92 +31,140 @@ let view = {
         let messageArea = document.getElementById('messageArea');
         messageArea.innerHTML = msg;
     },
-    displayHit: function (localizacao) {
-        let cell = document.getElementById(localizacao);
-        cell.setAttribute('class', 'acerto');
+    displayHit: function (location) {
+        let cell = document.getElementById(location);
+        cell.setAttribute('class', 'hit');
     },
-    displayMiss: function (localizacao) {
-        let cell = document.getElementById(localizacao);
+    displayMiss: function (location) {
+        let cell = document.getElementById(location);
         cell.setAttribute('class', 'erro');
     }
 }
 
 
 let model = {
-    tamanhoGrade: 7,
-    numNavios: 3,
-    naviosAfundados: 0,
-    navioLength: 3,
-    navios: [{
-            localizacoes: ['00', '01', '02'],
-            acertos: ['', '', '']
+    boardSize: 7,
+    numShips: 3,
+    shipLength: 3,
+    shipsSunk: 0,
+    ships: [{
+            locations: [0, 0, 0],
+            hits: ['', '', '']
         },
         {
-            localizacoes: ['10', '11', '12'],
-            acertos: ['', '', '']
+            locations: [0, 0, 0],
+            hits: ['', '', '']
         },
         {
-            localizacoes: ['20', '21', '22'],
-            acertos: ['', '', '']
+            locations: [0, 0, 0],
+            hits: ['', '', '']
         }
     ],
-    fogo: function (palpite) {
-        for (let i = 0; i < this.numNavios; i++) {
-            let navio = this.navios[i];
-            let index = navio.localizacoes.indexOf(palpite);
+    fire: function (guess) {
+        for (let i = 0; i < this.numShips; i++) {
+
+            let ship = this.ships[i];
+            let index = ship.locations.indexOf(guess);
+
             if (index >= 0) {
-                navio.acertos[index] = 'hit';
-                view.displayHit(palpite);
+
+                ship.hits[index] = 'hit';
+                view.displayHit(guess);
                 view.displayMessage('HIT');
-                if (this.isAfundados(navio)) {
+
+                if (this.isSunk(ship)) {
+
                     view.displayMessage('Você atingiu meu barco!!!!');
-                    this.naviosAfundados++;
+                    this.shipsSunk++;
                 }
                 return true;
             }
         }
-        view.displayMiss(palpite);
+        view.displayMiss(guess);
         view.displayMessage('Você errou!!!');
         return false;
     },
-    isAfundados: function (navio) {
-        for (let i = 0; i < this.navioLength; i++) {
-            if (navio.acertos[i] !== "hit") {
+    isSunk: function (ship) {
+        for (let i = 0; i < this.shipLength; i++) {
+            if (ship.hits[i] !== "hit") {
                 return false;
             }
         }
         return true;
+    },
+    generateShipsLocations: function () {
+        let locations;
+        for (let i = 0; i < this.numShips; i++) {
+            do {
+                locations = this.generateShip();
+            } while (this.collision(locations));
+            this.ships[i].locations = locations;
+        }
+    },
+    generateShip: function () {
+        let direction = Math.floor(Math.random() * 2);
+        let row,
+            col;
+        if (direction === 1) {
+            row = Math.floor(Math.random() * this.boardSize);
+            col = Math.floor(Math.random() * (this.boardSize - this.shipLength));
+        } else {
+            row = Math.floor(Math.random() * (this.boardSize - this.shipLength));
+            col = Math.floor(Math.random() * this.boardSize);
+        }
+
+        let newShipLocations = [];
+
+        for (let i = 0; i < this.shipLength; i++) {
+            if (direction === 1) {
+                newShipLocations.push(row + "" + (col + i));
+            } else {
+                newShipLocations.push((row + i) + "" + col);
+            }
+        }
+        return newShipLocations;
+    },
+    collision: function (locations) {
+        for (let i = 0; i < this.numShips; i++) {
+            let ship = model.ships[i];
+            for (let j = 0; j < locations.length; j++) {
+                if (ship.locations.indexOf(locations[j]) >= 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 };
 
 let controller = {
-    palpites: 0,
-    palpiteProcessado: function(palpite) {
-        let localizacao = parsePalpite(palpite);
-        if (localizacao) {
-            this.palpites++
-            let acerto = model.fogo(localizacao);
-            if (acerto && model.naviosAfundados === model.numNavios) {
-                view.displayMessage('Você afundou todos meus navios, em ' + this.palpites + "palpites");
+    guesses: 0,
+    processGuess: function (guess) {
+        let location = parseGuess(guess);
+        if (location) {
+            this.guesses++
+                let hit = model.fire(location);
+            if (hit && model.shipsSunk === model.numShips) {
+                view.displayMessage('Você afundou todos meus ships, em ' + this.guesses + "guesses");
             }
         }
     }
 }
 
 
-function parsePalpite(palpite) {
-    let alfalbeto = ['A','B','C','D','F','G'];
+function parseGuess(guess) {
+    let alfalbeto = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
 
-    if (palpite === null || palpite.length !== 2) {
+    if (guess === null || guess.length !== 2) {
         alert('Opa, por favor entre com uma letra e um numero');
     } else {
-        let primeiraLetra = palpite.charAt(0);
-        let linha = alfalbeto.indexOf(primeiraLetra);
-        let coluna = palpite.charAt(1);
+        let primeiraletra = guess.charAt(0);
+        let linha = alfalbeto.indexOf(primeiraletra);
+        let coluna = guess.charAt(1);
 
         if (isNaN(linha) || isNaN(coluna)) {
             alert('Opa, that isn t on the board.');
-        } else if (linha < 0 || linha >= model.tamanhoGrade || coluna < 0 || coluna >= model.tamanhoGrade ) {
+        } else if (linha < 0 || linha >= model.boardSize || coluna < 0 || coluna >= model.boardSize) {
             alert('opss, that s off the board');
         } else {
             return linha + coluna;
